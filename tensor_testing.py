@@ -19,6 +19,7 @@ print(rank_2_tensor.shape)
 
 print(tf.transpose(rank_2_tensor))
 
+print(rank_2_tensor.shape(3, 2))
 mat1 = tf.random.uniform((10000, 10000), -1, 1, dtype=tf.float32) 
 
 mat2 = tf.random.uniform((10000, 10000), -1, 1, dtype=tf.float32) 

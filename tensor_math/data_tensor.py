@@ -34,7 +34,7 @@ def readBinaryLabels(path: str):
 def vectorizeResult(index: int):
     list = np.zeros((10, 1))
     list[index] = 1.0
-    return tf.constant(list, dtype = tf.float32)
+    return tf.constant(list, dtype=tf.float32)
 
 def getPrepredData(dataPath:str, labelpath:str):
     # prepered data is a list of (img, desired output)

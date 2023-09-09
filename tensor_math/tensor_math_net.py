@@ -1,12 +1,14 @@
 import numpy as np
 import random
-import data
+import tensor_math.data_tensor as data_tensor
 import matplotlib.pyplot as plt
 import time
 import pickle
-from cost_functions import Cost, CrossEntropyCost, QuadraticCost
+from tensor_math.cost_functions import Cost, CrossEntropyCost, QuadraticCost
 import matplotlib
 import tensorflow as tf
+from cProfile import Profile 
+from pstats import SortKey, Stats
 
 matplotlib.use("TkAgg")
 
@@ -49,12 +51,10 @@ class Network():
             for mini_batch in mini_batches:
                 self.update_mini_batch(mini_batch, learning_rate)
 
-
             if test_data:
                 test_data = list(test_data)
-                self.successRate = (self.evaluate(test_data, visualize, current_epoch, epochs) / len(test_data)) * 100
-                print(f"epoch: {current_epoch} {self.successRate}")
-
+                self.evaluate(test_data, visualize, current_epoch, epochs)
+                
     def update_mini_batch(self, mini_batch, leariningRate):
         """Update the network's weights and biases by applying
         gradient descent using backpropagation to a single mini batch"""
@@ -69,7 +69,8 @@ class Network():
         """``the backpropagation algorithem``
 
         Args:
-            ``activation``: the input to the net\n
+            ``activation``: the input to    tf.sigmoid()
+  the net\n
             ``y`` : the wanted outout
 
         Returns:
@@ -116,6 +117,11 @@ class Network():
         Returns:
             int: the total images the network succeeded on
         """
+        test_results = [(tf.argmax(self.feedforward(testImg)), tf.argmax(vectorizedLabel)) for (testImg, vectorizedLabel) in test_data]
+        total_imgs_succeeded = sum(int(x == y) for (x, y) in test_results)
+        self.successRate = (total_imgs_succeeded / len(test_data)) * 100
+        print(f"epoch: {current_epoch} {self.successRate}")
+        
         if visualize:
             if current_epoch == total_epochs - 1:
                 plt.ion()
@@ -123,17 +129,14 @@ class Network():
                 array = np.array(test_data[0][0]).reshape(28, 28)
                 axim1 = ax1.imshow(array, cmap='gist_gray')
                 for testImg, testLabel in test_data:
-                    matrix = testImg.reshape(28, 28)
+                    matrix = tf.reshape(testImg, (28, 28))
                     axim1.set_data(matrix)
                     fig1.canvas.flush_events()
                     output = self.feedforward(testImg)
                     print(f"prediction: {tf.argmax(output, 0)}, True: {tf.argmax(testLabel, 0)}, conf: {np.max(output) / sum(output)}")
                     plt.show()
-                    time.sleep(0.5)
+                    time.sleep(0.7)
 
-        test_results = [(tf.argmax(self.feedforward(testImg), 1), tf.argmax(vectorizedLabel, 1)) for (testImg, vectorizedLabel) in test_data]
-        print(test_results[10][0], test_results[10][1])
-        return sum(int(x == y) for (x, y) in test_results)
     
     def save_weights_and_biases(self, file_name:str):
         """``saves the weights and biases of the network to a binary file with pickle``
@@ -167,7 +170,7 @@ class Network():
     
 def sigmoid(z):
     """``the sigmoid function``"""
-    return 1/(1 + tf.exp(-z))
+    return tf.sigmoid(z)
 
 def sigmoid_prime(z):
     """`Derivative of the sigmoid function`"""
@@ -175,17 +178,26 @@ def sigmoid_prime(z):
 
 
 net = Network([784, 100, 10])
-trainingData = data.getPrepredData(r"/home/sagi21805/Desktop/Vscode/machine-learning/.MnistDataFiles/train-images.idx3-ubyte", r"/home/sagi21805/Desktop/Vscode/machine-learning/.MnistDataFiles/train-labels.idx1-ubyte")
-testData = data.getPrepredData(r"/home/sagi21805/Desktop/Vscode/machine-learning/.MnistDataFiles/t10k-images.idx3-ubyte", r"/home/sagi21805/Desktop/Vscode/machine-learning/.MnistDataFiles/t10k-labels.idx1-ubyte")
+trainingData = data_tensor.getPrepredData(r"/home/sagi21805/Desktop/Vscode/machine-learning/.MnistDataFiles/train-images.idx3-ubyte", r"/home/sagi21805/Desktop/Vscode/machine-learning/.MnistDataFiles/train-labels.idx1-ubyte")
+testData = data_tensor.getPrepredData(r"/home/sagi21805/Desktop/Vscode/machine-learning/.MnistDataFiles/t10k-images.idx3-ubyte", r"/home/sagi21805/Desktop/Vscode/machine-learning/.MnistDataFiles/t10k-labels.idx1-ubyte")
+
 
 start_time = time.time()
 
 #TODO add reminder if didnt initialize weights and biases
 
-net.initialize_random_weights_biases()
-net.train(trainingData, 30, 10, 0.15, test_data = testData, visualize=False)
-if net.successRate > 95:
-    net.saveWeightsAndBiases(f"{net.size}-{net.successRate}.pickle")
+if __name__ == "__main__":
+    net.initialize_random_weights_biases()
+    print("started")
+    with Profile() as profile:
+        print(f"{net.train(trainingData, 1, 10, 0.15, test_data = testData, visualize=False)}")
+        (
+            Stats(profile).strip_dirs().sort_stats(SortKey.TIME).print_stats()
+        )
+              
+    # net.train(trainingData, 1, 10, 0.15, test_data = testData, visualize=True)
+    if net.successRate > 95:
+        net.save_weights_and_biases(f"{net.size}-{net.successRate}.pickle")
 
 print(f"time: {time.time() - start_time}")
 
